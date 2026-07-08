@@ -296,6 +296,8 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
   const now = () => Date.now();
+  // 削除済みを除いたアクティブなエントリのみを返す
+  const activeEntries = () => entries.filter(e => !e.deleted);
 
   /**
    * 日付を必ず "YYYY-MM-DD" 形式に正規化する
@@ -418,7 +420,9 @@
         localMap[se.id] = se;
       }
     });
-    entries = Object.values(localMap).filter(e => !e.deleted);
+    entries = Object.values(localMap);
+    // deletedフラグはそのまま保持(サーバーに削除状態を伝え続けるため)
+    // 表示・集計側でfilterする
     
     if (serverData.config && serverData.config.wallets) {
       const svr = serverData.config.wallets;
@@ -446,9 +450,10 @@
   function getWalletBalance(walletId) {
     const wallet = config.wallets.find(w => w.id === walletId);
     if (!wallet) return 0;
-    const walletEntries = entries.filter(e => e.payment === walletId);
+    const active = activeEntries();
+    const walletEntries = active.filter(e => e.payment === walletId);
     if (walletEntries.length === 0) return wallet.monthly;
-    const months = [...new Set(entries.map(e => ym(e.date)).filter(Boolean))].sort();
+    const months = [...new Set(active.map(e => ym(e.date)).filter(Boolean))].sort();
     const startMonth = months[0] && months[0] < curYM() ? months[0] : curYM();
     let balance = 0;
     let m = startMonth;
@@ -483,7 +488,7 @@
       const dt = new Date(normalized);
       return dt >= closePrevNext && dt <= closeThis;
     };
-    const cardEntries = entries.filter(e => e.payment === card.id);
+    const cardEntries = activeEntries().filter(e => e.payment === card.id);
     const billing = cardEntries.filter(e => inRange(e.date)).reduce((s, e) =>
       s + (e.type === 'expense' ? e.amount : -e.amount), 0);
     const monthUsage = cardEntries.filter(e => ym(e.date) === curYM()).reduce((s, e) =>
@@ -571,7 +576,7 @@
 
   function refreshMonthFilter() {
     const sel = document.getElementById('filter-month');
-    const months = [...new Set(entries.map(e => ym(e.date)).filter(Boolean))].sort().reverse();
+    const months = [...new Set(activeEntries().map(e => ym(e.date)).filter(Boolean))].sort().reverse();
     const cur = sel.value;
     const c = curYM();
     sel.innerHTML = '<option value="all">すべての月</option>' +
@@ -581,7 +586,7 @@
 
   function refreshStats() {
     const c = curYM();
-    const monthEntries = entries.filter(e => ym(e.date) === c);
+    const monthEntries = activeEntries().filter(e => ym(e.date) === c);
     const expense = monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
     const income = monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
     document.getElementById('stat-month').textContent = yen(expense);
@@ -596,7 +601,7 @@
 
   function refreshList() {
     const sel = document.getElementById('filter-month').value;
-    const filtered = entries.filter(e => sel === 'all' || ym(e.date) === sel)
+    const filtered = activeEntries().filter(e => sel === 'all' || ym(e.date) === sel)
       .sort((a, b) => {
         const da = normalizeDate(a.date), db = normalizeDate(b.date);
         return db.localeCompare(da) || b.id - a.id;
@@ -642,7 +647,7 @@
           target.updatedAt = now();
           markEntryDirty(target);
         }
-        entries = entries.filter(e => e.id !== id);
+        // 配列から削除しない(サーバー送信のため保持、表示・集計時にfilterで除外)
         saveEntries();
         renderAll();
         sync();
@@ -657,7 +662,7 @@
     const grid = 'rgba(0,0,0,0.08)';
     const palette = ['#7F77DD', '#1D9E75', '#D85A30', '#D4537E', '#378ADD', '#EF9F27', '#888780', '#639922', '#E24B4A', '#5DCAA5', '#F4C0D1'];
 
-    const expenseEntries = entries.filter(e => e.type === 'expense');
+    const expenseEntries = activeEntries().filter(e => e.type === 'expense');
 
     let cfg;
     if (mode === 'month') {
@@ -774,9 +779,10 @@
   document.getElementById('filter-month').addEventListener('change', refreshList);
 
   document.getElementById('btn-export').addEventListener('click', () => {
-    if (!entries.length) { alert('記録がありません'); return; }
+    const active = activeEntries();
+    if (!active.length) { alert('記録がありません'); return; }
     const header = '日付,種別,カテゴリ,支払/受取方法,金額,メモ\n';
-    const rows = entries.slice().sort((a,b) => normalizeDate(a.date).localeCompare(normalizeDate(b.date)))
+    const rows = active.slice().sort((a,b) => normalizeDate(a.date).localeCompare(normalizeDate(b.date)))
       .map(e => `${normalizeDate(e.date)},${e.type === 'expense' ? '支出' : '収入'},${e.category},${getPaymentLabel(e.payment)},${e.amount},"${(e.memo||'').replace(/"/g,'""')}"`).join('\n');
     const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
