@@ -153,14 +153,29 @@
     <span id="sync-badge" class="sync-badge">未設定</span>
   </h1>
 
-  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px;">
-    <div class="section-title">ウォレット残高</div>
-    <button id="btn-settings" class="btn-soft" style="font-size: 12px; padding: 6px 12px; min-height: 32px;">設定</button>
+  <div class="panel">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+      <div class="section-title" style="margin-bottom: 0;">記録を追加</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div class="toggle-group" id="type-toggle">
+          <button data-type="expense" class="active">支出</button>
+          <button data-type="income">収入</button>
+        </div>
+        <button id="btn-settings" class="btn-soft" style="font-size: 12px; padding: 6px 12px; min-height: 32px;">設定</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <input type="date" id="in-date" lang="ja" />
+      <input type="number" id="in-amount" placeholder="金額" min="0" inputmode="numeric" />
+      <select id="in-category"></select>
+      <select id="in-payment"></select>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <input type="text" id="in-memo" placeholder="メモ(任意)" style="flex: 1;" />
+      <button id="btn-add">追加</button>
+    </div>
+    <div id="warn-msg" style="display: none; margin-top: 10px; padding: 8px 12px; background: var(--bg-danger); color: var(--text-danger); border-radius: 6px; font-size: 13px;"></div>
   </div>
-  <div id="wallets" class="grid-cards"></div>
-
-  <div class="section-title">クレジットカード</div>
-  <div id="cards" class="grid-cards-md"></div>
 
   <div class="grid-cards">
     <div class="stat-card">
@@ -181,26 +196,11 @@
     </div>
   </div>
 
-  <div class="panel">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
-      <div class="section-title" style="margin-bottom: 0;">記録を追加</div>
-      <div class="toggle-group" id="type-toggle">
-        <button data-type="expense" class="active">支出</button>
-        <button data-type="income">収入</button>
-      </div>
-    </div>
-    <div class="form-grid">
-      <input type="date" id="in-date" />
-      <input type="number" id="in-amount" placeholder="金額" min="0" inputmode="numeric" />
-      <select id="in-category"></select>
-      <select id="in-payment"></select>
-    </div>
-    <div style="display: flex; gap: 8px; align-items: center;">
-      <input type="text" id="in-memo" placeholder="メモ(任意)" style="flex: 1;" />
-      <button id="btn-add">追加</button>
-    </div>
-    <div id="warn-msg" style="display: none; margin-top: 10px; padding: 8px 12px; background: var(--bg-danger); color: var(--text-danger); border-radius: 6px; font-size: 13px;"></div>
-  </div>
+  <div class="section-title">ウォレット残高</div>
+  <div id="wallets" class="grid-cards"></div>
+
+  <div class="section-title">クレジットカード</div>
+  <div id="cards" class="grid-cards-md"></div>
 
   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
     <div class="section-title">月別グラフ</div>
@@ -489,6 +489,7 @@
 
   function refreshPaymentSelect() {
     const sel = document.getElementById('in-payment');
+    const prev = sel.value;
     const walletLabel = currentType === 'expense' ? 'ウォレット' : 'ウォレット(チャージ先)';
     const cardLabel = currentType === 'expense' ? 'クレジットカード' : 'クレジットカード(返金先)';
     sel.innerHTML = '<optgroup label="' + walletLabel + '">' +
@@ -501,6 +502,12 @@
       '</optgroup><optgroup label="その他">' +
       NON_WALLET.map(n => `<option value="${n.id}">${n.name}</option>`).join('') +
       '</optgroup>';
+    // 前の選択を復元、なければデフォルトで ANA GOLD
+    if (prev && [...sel.options].some(o => o.value === prev)) {
+      sel.value = prev;
+    } else {
+      sel.value = 'ana_gold';
+    }
   }
 
   function refreshWallets() {
