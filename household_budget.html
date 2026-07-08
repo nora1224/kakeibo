@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<meta name="theme-color" content="#1a1a1a">
+<title>家計簿</title>
+<style>
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-tertiary: #9b9b9b;
+    --text-danger: #d4543c;
+    --text-income: #1d8a4e;
+    --border: #e5e5e5;
+    --bg-danger: #fef2f2;
+    --bg-income: #ecfdf3;
+    --bg-warn: #fef3c7;
+    --text-warn: #92400e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    padding: 12px;
+    line-height: 1.5;
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: var(--bg-primary);
+    padding: 16px;
+    border-radius: 12px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 16px 0;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  input, select, button, textarea {
+    font-family: inherit;
+    font-size: 16px; /* iOS zoom防止 */
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 44px; /* iOSタップ推奨サイズ */
+    -webkit-appearance: none;
+  }
+  button {
+    cursor: pointer;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-weight: 500;
+    touch-action: manipulation;
+  }
+  button:active { opacity: 0.7; }
+  .btn-soft {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .grid-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+  .grid-cards-md { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .stat-card { background: var(--bg-secondary); border-radius: 8px; padding: 12px; }
+  .item-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .panel { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+  table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  th { background: var(--bg-secondary); color: var(--text-secondary); font-weight: 500; text-align: left; padding: 8px 10px; font-size: 12px; }
+  td { padding: 10px; border-top: 1px solid var(--border); word-break: break-word; }
+  .section-title { font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+  .toggle-group { display: inline-flex; background: var(--bg-secondary); border-radius: 999px; padding: 3px; gap: 2px; }
+  .toggle-group button {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 999px;
+    min-height: 32px;
+  }
+  .toggle-group button.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .sync-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    min-height: 28px;
+  }
+  .sync-badge.online { background: var(--bg-income); color: var(--text-income); }
+  .sync-badge.offline { background: var(--bg-warn); color: var(--text-warn); }
+  .sync-badge.syncing { background: #e0e7ff; color: #4338ca; }
+  .sync-badge.error { background: var(--bg-danger); color: var(--text-danger); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  
+  /* モバイル: 縦積み */
+  @media (max-width: 640px) {
+    body { padding: 8px; }
+    .container { padding: 12px; border-radius: 10px; }
+    h1 { font-size: 18px; }
+    .grid-cards { grid-template-columns: repeat(2, 1fr); }
+    .grid-cards-md { grid-template-columns: 1fr 1fr; }
+    .form-grid { grid-template-columns: 1fr 1fr !important; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 6px !important; }
+    .hide-mobile { display: none !important; }
+    .list-payment { font-size: 11px; color: var(--text-tertiary); }
+  }
+  
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  
+  .modal-bg {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); z-index: 100;
+    display: none; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--bg-primary); border-radius: 12px; padding: 20px;
+    max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>
+    <span>家計簿 🪙</span>
+    <span id="sync-badge" class="sync-badge">未設定</span>
+  </h1>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px;">
+    <div class="section-title">ウォレット残高</div>
+    <button id="btn-settings" class="btn-soft" style="font-size: 12px; padding: 6px 12px; min-height: 32px;">設定</button>
+  </div>
+  <div id="wallets" class="grid-cards"></div>
+
+  <div class="section-title">クレジットカード</div>
+  <div id="cards" class="grid-cards-md"></div>
+
+  <div class="grid-cards">
+    <div class="stat-card">
+      <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">今月の支出</div>
+      <div id="stat-month" style="font-size: 20px; font-weight: 500;">¥0</div>
+    </div>
+    <div class="stat-card">
+      <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">今月の収入</div>
+      <div id="stat-income" style="font-size: 20px; font-weight: 500; color: var(--text-income);">¥0</div>
+    </div>
+    <div class="stat-card">
+      <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">差引</div>
+      <div id="stat-net" style="font-size: 20px; font-weight: 500;">¥0</div>
+    </div>
+    <div class="stat-card">
+      <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">最多カテゴリ</div>
+      <div id="stat-top" style="font-size: 16px; font-weight: 500;">—</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+      <div class="section-title" style="margin-bottom: 0;">記録を追加</div>
+      <div class="toggle-group" id="type-toggle">
+        <button data-type="expense" class="active">支出</button>
+        <button data-type="income">収入</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <input type="date" id="in-date" />
+      <input type="number" id="in-amount" placeholder="金額" min="0" inputmode="numeric" />
+      <select id="in-category"></select>
+      <select id="in-payment"></select>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <input type="text" id="in-memo" placeholder="メモ(任意)" style="flex: 1;" />
+      <button id="btn-add">追加</button>
+    </div>
+    <div id="warn-msg" style="display: none; margin-top: 10px; padding: 8px 12px; background: var(--bg-danger); color: var(--text-danger); border-radius: 6px; font-size: 13px;"></div>
+  </div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
+    <div class="section-title">月別グラフ</div>
+    <select id="chart-mode" style="width: auto; min-width: 140px;">
+      <option value="month">月別合計</option>
+      <option value="category">カテゴリ別(今月)</option>
+      <option value="payment">支払方法(今月)</option>
+    </select>
+  </div>
+  <div style="position: relative; width: 100%; height: 240px; margin-bottom: 16px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 12px;">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
+    <div class="section-title">記録一覧</div>
+    <div style="display: flex; gap: 8px;">
+      <select id="filter-month" style="width: auto; min-width: 120px;"></select>
+      <button id="btn-export" class="btn-soft" style="font-size: 12px; padding: 6px 12px; min-height: 32px;">CSV</button>
+    </div>
+  </div>
+  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-x: auto;">
+    <table id="list">
+      <thead><tr>
+        <th style="width: 60px;">日付</th>
+        <th>カテゴリ</th>
+        <th class="hide-mobile" style="width: 22%;">支払</th>
+        <th style="width: 90px; text-align: right;">金額</th>
+        <th style="width: 60px;"></th>
+      </tr></thead>
+      <tbody id="list-body"></tbody>
+    </table>
+    <div id="empty-msg" style="padding: 2rem 1rem; text-align: center; color: var(--text-tertiary); font-size: 13px;">まだ記録がありません</div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div id="settings-modal" class="modal-bg">
+  <div class="modal">
+    <div style="font-size: 16px; font-weight: 500; margin-bottom: 16px;">設定</div>
+    
+    <div class="section-title">同期(Google スプレッドシート)</div>
+    <div style="margin-bottom: 8px;">
+      <input type="text" id="sync-url" placeholder="GAS Web App URL" style="width: 100%;" />
+    </div>
+    <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+      <button id="btn-sync-now" class="btn-soft" style="flex: 1; font-size: 13px;">今すぐ同期</button>
+      <button id="btn-sync-save" style="flex: 1; font-size: 13px;">URL保存</button>
+    </div>
+    <div id="sync-msg" style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 20px;"></div>
+
+    <div class="section-title">月次チャージ額</div>
+    <div id="settings-rows" style="display: grid; gap: 8px; margin-bottom: 20px;"></div>
+    
+    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+      <button id="btn-settings-cancel" class="btn-soft" style="font-size: 13px;">閉じる</button>
+      <button id="btn-settings-save" style="font-size: 13px;">チャージ額保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+(function(){
+  const KEY_ENTRIES = 'household-budget-entries';
+  const KEY_CONFIG = 'household-budget-config';
+  const KEY_SYNC_URL = 'household-budget-sync-url';
+  const KEY_PENDING = 'household-budget-pending';
+
+  const DEFAULT_WALLETS = [
+    { id: 'starbucks', name: 'スタバ',   monthly: 3000, color: '#0F6E56' },
+    { id: 'famipay',   name: 'ファミペイ', monthly: 5000, color: '#1D9E75' },
+    { id: 'sevenpay',  name: 'セブンペイ', monthly: 5000, color: '#D85A30' },
+    { id: 'paypay',    name: 'PayPay',   monthly: 5000, color: '#E24B4A' },
+  ];
+  const CARDS = [
+    { id: 'ana_gold',  name: 'ANA GOLD',  brand: 'VISA', closeDay: 15, payDay: 10, color: '#854F0B' },
+    { id: 'ana_pasmo', name: 'ANA PASMO', brand: 'JCB',  closeDay: 15, payDay: 10, color: '#185FA5' },
+    { id: 'aeon',      name: 'AEON',      brand: '',     closeDay: 10, payDay: 2,  color: '#993556' },
+  ];
+  const NON_WALLET = [{ id: 'cash', name: '現金' }];
+
+  const EXPENSE_CATEGORIES = ['食費','日用品','交通費','住居費','光熱費','通信費','医療費','娯楽','衣服','交際費','その他'];
+  const INCOME_CATEGORIES = ['立替金返却','贈り物','給与','還付金','その他','該当なし'];
+
+  let entries = [];
+  let config = { wallets: DEFAULT_WALLETS, walletsUpdatedAt: 0 };
+  let pendingSync = { entries: {}, config: {} };
+  let chart = null;
+  let currentType = 'expense';
+  let syncUrl = '';
+  let isOnline = navigator.onLine;
+
+  const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+  const ym = d => d.slice(0, 7);
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const curYM = () => ym(today());
+  const now = () => Date.now();
+
+  function load() {
+    try {
+      const e = localStorage.getItem(KEY_ENTRIES);
+      entries = e ? JSON.parse(e) : [];
+      entries.forEach(e => { if (!e.type) e.type = 'expense'; if (!e.updatedAt) e.updatedAt = e.id || 0; });
+    } catch (e) { entries = []; }
+    try {
+      const c = localStorage.getItem(KEY_CONFIG);
+      if (c) {
+        const saved = JSON.parse(c);
+        const merged = DEFAULT_WALLETS.map(d => {
+          const s = (saved.wallets || []).find(w => w.id === d.id);
+          return s ? { ...d, monthly: s.monthly } : d;
+        });
+        config = { wallets: merged, walletsUpdatedAt: saved.walletsUpdatedAt || 0 };
+      }
+    } catch (e) {}
+    try {
+      const p = localStorage.getItem(KEY_PENDING);
+      if (p) pendingSync = JSON.parse(p);
+    } catch (e) {}
+    syncUrl = localStorage.getItem(KEY_SYNC_URL) || '';
+  }
+  function saveEntries() { try { localStorage.setItem(KEY_ENTRIES, JSON.stringify(entries)); } catch (e) {} }
+  function saveConfig() { try { localStorage.setItem(KEY_CONFIG, JSON.stringify(config)); } catch (e) {} }
+  function savePending() { try { localStorage.setItem(KEY_PENDING, JSON.stringify(pendingSync)); } catch (e) {} }
+
+  function markEntryDirty(entry) {
+    pendingSync.entries[entry.id] = true;
+    savePending();
+  }
+  function markConfigDirty(key) {
+    pendingSync.config[key] = true;
+    savePending();
+  }
+
+  // ===== 同期処理 =====
+  function updateSyncBadge(state, msg) {
+    const badge = document.getElementById('sync-badge');
+    badge.className = 'sync-badge ' + state;
+    const labels = {
+      online: '同期済み',
+      offline: 'オフライン',
+      syncing: '同期中...',
+      error: '同期エラー',
+      idle: syncUrl ? '同期待ち' : '未設定'
+    };
+    badge.innerHTML = '<span class="dot"></span>' + (msg || labels[state] || '未設定');
+  }
+
+  async function sync() {
+    if (!syncUrl) { updateSyncBadge('idle'); return; }
+    if (!navigator.onLine) { updateSyncBadge('offline'); return; }
+    updateSyncBadge('syncing');
+    try {
+      // pushするデータを準備
+      const dirtyEntries = entries.filter(e => pendingSync.entries[e.id]);
+      const pushData = { entries: dirtyEntries, config: {} };
+      Object.keys(pendingSync.config).forEach(key => {
+        if (key === 'wallets') {
+          pushData.config.wallets = { value: config.wallets, updatedAt: config.walletsUpdatedAt };
+        }
+      });
+      
+      // GASにPOST(FormDataでCORSプリフライトを回避)
+      const formData = new FormData();
+      formData.append('action', 'push');
+      formData.append('data', JSON.stringify(pushData));
+      
+      const res = await fetch(syncUrl, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      
+      // 応答内容でローカルデータを更新(差分マージ)
+      mergeFromServer(result);
+      pendingSync = { entries: {}, config: {} };
+      savePending();
+      saveEntries();
+      saveConfig();
+      renderAll();
+      updateSyncBadge('online', '同期済み ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+    } catch (err) {
+      console.error(err);
+      updateSyncBadge('error', 'エラー: ' + err.message);
+    }
+  }
+
+  function mergeFromServer(serverData) {
+    // entries: サーバー側の方が新しいものだけ反映
+    const localMap = {};
+    entries.forEach(e => localMap[e.id] = e);
+    (serverData.entries || []).forEach(se => {
+      const local = localMap[se.id];
+      if (!local || (se.updatedAt || 0) > (local.updatedAt || 0)) {
+        localMap[se.id] = se;
+      }
+    });
+    entries = Object.values(localMap).filter(e => !e.deleted);
+    
+    // config
+    if (serverData.config && serverData.config.wallets) {
+      const svr = serverData.config.wallets;
+      if ((svr.updatedAt || 0) > (config.walletsUpdatedAt || 0)) {
+        if (Array.isArray(svr.value)) {
+          const merged = DEFAULT_WALLETS.map(d => {
+            const s = svr.value.find(w => w.id === d.id);
+            return s ? { ...d, monthly: s.monthly } : d;
+          });
+          config = { wallets: merged, walletsUpdatedAt: svr.updatedAt };
+        }
+      }
+    }
+  }
+
+  window.addEventListener('online', () => { isOnline = true; sync(); });
+  window.addEventListener('offline', () => { isOnline = false; updateSyncBadge('offline'); });
+
+  // ===== 以下、アプリロジック =====
+  function nextMonth(yyyymm) {
+    const [y, mo] = yyyymm.split('-').map(Number);
+    const d = new Date(y, mo, 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function getWalletBalance(walletId) {
+    const wallet = config.wallets.find(w => w.id === walletId);
+    if (!wallet) return 0;
+    const walletEntries = entries.filter(e => e.payment === walletId);
+    if (walletEntries.length === 0) return wallet.monthly;
+    const months = [...new Set(entries.map(e => ym(e.date)))].sort();
+    const startMonth = months[0] < curYM() ? months[0] : curYM();
+    let balance = 0;
+    let m = startMonth;
+    while (m <= curYM()) {
+      balance += wallet.monthly;
+      const monthOps = walletEntries.filter(e => ym(e.date) === m);
+      const expense = monthOps.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+      const income = monthOps.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+      balance -= expense;
+      balance += income;
+      m = nextMonth(m);
+    }
+    return balance;
+  }
+
+  function getPaymentLabel(id) {
+    const w = config.wallets.find(x => x.id === id);
+    if (w) return w.name;
+    const c = CARDS.find(x => x.id === id);
+    if (c) return c.name + (c.brand ? `(${c.brand})` : '');
+    const n = NON_WALLET.find(x => x.id === id);
+    return n ? n.name : id;
+  }
+
+  function getCardSummary(card) {
+    const [y, m] = curYM().split('-').map(Number);
+    const closeThis = new Date(y, m - 1, card.closeDay);
+    const closePrevNext = new Date(y, m - 2, card.closeDay + 1);
+    const inRange = (d) => {
+      const dt = new Date(d);
+      return dt >= closePrevNext && dt <= closeThis;
+    };
+    const cardEntries = entries.filter(e => e.payment === card.id);
+    const billing = cardEntries.filter(e => inRange(e.date)).reduce((s, e) =>
+      s + (e.type === 'expense' ? e.amount : -e.amount), 0);
+    const monthUsage = cardEntries.filter(e => ym(e.date) === curYM()).reduce((s, e) =>
+      s + (e.type === 'expense' ? e.amount : -e.amount), 0);
+    const todayD = new Date(today());
+    let payMonth;
+    if (todayD <= closeThis) {
+      payMonth = new Date(y, m, card.payDay);
+    } else {
+      payMonth = new Date(y, m + 1, card.payDay);
+    }
+    const payDateStr = `${payMonth.getMonth() + 1}/${payMonth.getDate()}`;
+    return { billing, monthUsage, payDateStr };
+  }
+
+  function refreshCategorySelect() {
+    const sel = document.getElementById('in-category');
+    const list = currentType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+    sel.innerHTML = list.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+
+  function refreshPaymentSelect() {
+    const sel = document.getElementById('in-payment');
+    const walletLabel = currentType === 'expense' ? 'ウォレット' : 'ウォレット(チャージ先)';
+    const cardLabel = currentType === 'expense' ? 'クレジットカード' : 'クレジットカード(返金先)';
+    sel.innerHTML = '<optgroup label="' + walletLabel + '">' +
+      config.wallets.map(w => {
+        const bal = getWalletBalance(w.id);
+        return `<option value="${w.id}">${w.name} (残 ${yen(bal)})</option>`;
+      }).join('') +
+      '</optgroup><optgroup label="' + cardLabel + '">' +
+      CARDS.map(c => `<option value="${c.id}">${c.name}${c.brand ? ' ('+c.brand+')' : ''}</option>`).join('') +
+      '</optgroup><optgroup label="その他">' +
+      NON_WALLET.map(n => `<option value="${n.id}">${n.name}</option>`).join('') +
+      '</optgroup>';
+  }
+
+  function refreshWallets() {
+    const wrap = document.getElementById('wallets');
+    wrap.innerHTML = config.wallets.map(w => {
+      const bal = getWalletBalance(w.id);
+      const pct = Math.max(0, Math.min(100, (bal / w.monthly) * 100));
+      const low = bal < w.monthly * 0.2;
+      return `
+        <div class="item-card">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${w.color};"></span>
+            <span style="font-size: 12px; color: var(--text-secondary);">${w.name}</span>
+          </div>
+          <div style="font-size: 18px; font-weight: 500; color: ${low ? 'var(--text-danger)' : 'var(--text-primary)'}; margin-bottom: 6px; font-variant-numeric: tabular-nums;">${yen(bal)}</div>
+          <div style="height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden;">
+            <div style="width: ${pct}%; height: 100%; background: ${w.color};"></div>
+          </div>
+          <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">月額 ${yen(w.monthly)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function refreshCards() {
+    const wrap = document.getElementById('cards');
+    wrap.innerHTML = CARDS.map(c => {
+      const sum = getCardSummary(c);
+      return `
+        <div class="item-card">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${c.color};"></span>
+            <span style="font-size: 12px; color: var(--text-secondary);">${c.name}${c.brand ? ' <span style="color: var(--text-tertiary); font-size: 10px;">('+c.brand+')</span>' : ''}</span>
+          </div>
+          <div style="font-size: 16px; font-weight: 500; margin-bottom: 4px; font-variant-numeric: tabular-nums;">${yen(sum.monthUsage)}</div>
+          <div style="font-size: 11px; color: var(--text-tertiary); line-height: 1.5;">
+            次回 ${sum.payDateStr}<br>
+            請求 ${yen(sum.billing)}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function refreshMonthFilter() {
+    const sel = document.getElementById('filter-month');
+    const months = [...new Set(entries.map(e => ym(e.date)))].sort().reverse();
+    const cur = sel.value;
+    const c = curYM();
+    sel.innerHTML = '<option value="all">すべての月</option>' +
+      (months.length ? months.map(m => `<option value="${m}">${m}</option>`).join('') : `<option value="${c}">${c}</option>`);
+    sel.value = cur && [...sel.options].some(o => o.value === cur) ? cur : (months[0] || c);
+  }
+
+  function refreshStats() {
+    const c = curYM();
+    const monthEntries = entries.filter(e => ym(e.date) === c);
+    const expense = monthEntries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+    const income = monthEntries.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+    document.getElementById('stat-month').textContent = yen(expense);
+    document.getElementById('stat-income').textContent = yen(income);
+    const net = expense - income;
+    document.getElementById('stat-net').textContent = (net >= 0 ? '' : '-') + yen(Math.abs(net));
+    const byCat = {};
+    monthEntries.filter(e => e.type === 'expense').forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+    const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+    document.getElementById('stat-top').textContent = top ? top[0] : '—';
+  }
+
+  function refreshList() {
+    const sel = document.getElementById('filter-month').value;
+    const filtered = entries.filter(e => sel === 'all' || ym(e.date) === sel)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+    const body = document.getElementById('list-body');
+    const empty = document.getElementById('empty-msg');
+    const table = document.getElementById('list');
+    if (!filtered.length) {
+      body.innerHTML = '';
+      empty.style.display = 'block';
+      table.style.display = 'none';
+      return;
+    }
+    empty.style.display = 'none';
+    table.style.display = '';
+    body.innerHTML = filtered.map(e => {
+      const isIncome = e.type === 'income';
+      const sign = isIncome ? '-' : '';
+      const color = isIncome ? 'color: var(--text-income);' : '';
+      const badge = isIncome ? '<span style="font-size: 10px; padding: 1px 5px; background: var(--bg-income); color: var(--text-income); border-radius: 4px; margin-right: 4px;">収入</span>' : '';
+      const payLabel = getPaymentLabel(e.payment);
+      return `
+        <tr>
+          <td>${e.date.slice(5)}</td>
+          <td>${badge}${e.category}${e.memo ? ` <span style="color: var(--text-tertiary); font-size: 11px;">${e.memo}</span>` : ''}<div class="list-payment" style="display:none;">${payLabel}</div></td>
+          <td class="hide-mobile">${payLabel}</td>
+          <td style="text-align: right; font-variant-numeric: tabular-nums; ${color}">${sign}${yen(e.amount)}</td>
+          <td style="text-align: right;"><button data-id="${e.id}" class="del-btn btn-soft" style="font-size: 11px; padding: 4px 8px; min-height: 28px;">削除</button></td>
+        </tr>
+      `;
+    }).join('');
+    // モバイル表示時に支払方法をカテゴリセルに表示
+    if (window.innerWidth <= 640) {
+      body.querySelectorAll('.list-payment').forEach(el => el.style.display = 'block');
+    }
+    body.querySelectorAll('.del-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        const id = Number(b.dataset.id);
+        const target = entries.find(e => e.id === id);
+        if (target) {
+          // 削除もサーバーへ通知するためdeletedフラグでmark
+          target.deleted = true;
+          target.updatedAt = now();
+          markEntryDirty(target);
+        }
+        entries = entries.filter(e => e.id !== id);
+        saveEntries();
+        renderAll();
+        sync();
+      });
+    });
+  }
+
+  function refreshChart() {
+    const ctx = document.getElementById('chart');
+    const mode = document.getElementById('chart-mode').value;
+    const fg = '#6b6b6b';
+    const grid = 'rgba(0,0,0,0.08)';
+    const palette = ['#7F77DD', '#1D9E75', '#D85A30', '#D4537E', '#378ADD', '#EF9F27', '#888780', '#639922', '#E24B4A', '#5DCAA5', '#F4C0D1'];
+
+    const expenseEntries = entries.filter(e => e.type === 'expense');
+
+    let cfg;
+    if (mode === 'month') {
+      const map = {};
+      expenseEntries.forEach(e => { const k = ym(e.date); map[k] = (map[k] || 0) + e.amount; });
+      const labels = Object.keys(map).sort().slice(-6);
+      const data = labels.map(l => map[l]);
+      cfg = {
+        type: 'bar',
+        data: { labels, datasets: [{ label: '支出', data, backgroundColor: '#7F77DD', borderRadius: 4 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: fg }, grid: { display: false } },
+            y: { ticks: { color: fg, callback: v => '¥' + (v/1000) + 'k' }, grid: { color: grid } }
+          }
+        }
+      };
+    } else if (mode === 'category') {
+      const c = curYM();
+      const map = {};
+      expenseEntries.filter(e => ym(e.date) === c).forEach(e => { map[e.category] = (map[e.category] || 0) + e.amount; });
+      const labels = Object.keys(map);
+      const data = labels.map(l => map[l]);
+      cfg = {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: palette.slice(0, labels.length), borderWidth: 0 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: fg, font: { size: 11 }, boxWidth: 10 } } }
+        }
+      };
+    } else {
+      const c = curYM();
+      const map = {};
+      expenseEntries.filter(e => ym(e.date) === c).forEach(e => {
+        const lbl = getPaymentLabel(e.payment);
+        map[lbl] = (map[lbl] || 0) + e.amount;
+      });
+      const labels = Object.keys(map);
+      cfg = {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: labels.map(l => map[l]), backgroundColor: palette.slice(0, labels.length), borderWidth: 0 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: fg, font: { size: 11 }, boxWidth: 10 } } }
+        }
+      };
+    }
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, cfg);
+  }
+
+  function renderAll() {
+    refreshPaymentSelect();
+    refreshWallets();
+    refreshCards();
+    refreshMonthFilter();
+    refreshStats();
+    refreshList();
+    refreshChart();
+  }
+
+  function showWarn(msg) {
+    const el = document.getElementById('warn-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  // ===== イベントハンドラ =====
+  document.querySelectorAll('#type-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentType = btn.dataset.type;
+      document.querySelectorAll('#type-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+      refreshCategorySelect();
+      refreshPaymentSelect();
+    });
+  });
+
+  document.getElementById('btn-add').addEventListener('click', () => {
+    const date = document.getElementById('in-date').value;
+    const amount = Number(document.getElementById('in-amount').value);
+    const category = document.getElementById('in-category').value;
+    const payment = document.getElementById('in-payment').value;
+    const memo = document.getElementById('in-memo').value.trim();
+    if (!date || !amount || amount <= 0) { showWarn('日付と金額を入力してください'); return; }
+
+    if (currentType === 'expense') {
+      const wallet = config.wallets.find(w => w.id === payment);
+      if (wallet) {
+        const bal = getWalletBalance(payment);
+        if (amount > bal) {
+          showWarn(`${wallet.name}の残高が足りません(残 ${yen(bal)})`);
+          return;
+        }
+      }
+    }
+
+    const entry = { id: Date.now(), type: currentType, date, amount, category, payment, memo, updatedAt: now(), deleted: false };
+    entries.push(entry);
+    markEntryDirty(entry);
+    saveEntries();
+    document.getElementById('in-amount').value = '';
+    document.getElementById('in-memo').value = '';
+    renderAll();
+    sync();
+  });
+
+  document.getElementById('chart-mode').addEventListener('change', refreshChart);
+  document.getElementById('filter-month').addEventListener('change', refreshList);
+
+  document.getElementById('btn-export').addEventListener('click', () => {
+    if (!entries.length) { alert('記録がありません'); return; }
+    const header = '日付,種別,カテゴリ,支払/受取方法,金額,メモ\n';
+    const rows = entries.slice().sort((a,b) => a.date.localeCompare(b.date))
+      .map(e => `${e.date},${e.type === 'expense' ? '支出' : '収入'},${e.category},${getPaymentLabel(e.payment)},${e.amount},"${(e.memo||'').replace(/"/g,'""')}"`).join('\n');
+    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `kakeibo_${today()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ===== 設定モーダル =====
+  function openSettings() {
+    const rows = document.getElementById('settings-rows');
+    rows.innerHTML = config.wallets.map(w => `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 13px; min-width: 80px;">${w.name}</span>
+        <input type="number" data-wid="${w.id}" value="${w.monthly}" min="0" step="100" style="flex: 1;" inputmode="numeric" />
+        <span style="font-size: 11px; color: var(--text-tertiary);">円/月</span>
+      </div>
+    `).join('');
+    document.getElementById('sync-url').value = syncUrl;
+    document.getElementById('settings-modal').classList.add('show');
+  }
+  document.getElementById('btn-settings').addEventListener('click', openSettings);
+  document.getElementById('btn-settings-cancel').addEventListener('click', () => {
+    document.getElementById('settings-modal').classList.remove('show');
+  });
+  document.getElementById('btn-settings-save').addEventListener('click', () => {
+    document.querySelectorAll('#settings-rows input').forEach(inp => {
+      const wid = inp.dataset.wid;
+      const v = Math.max(0, Math.round(Number(inp.value) || 0));
+      const w = config.wallets.find(x => x.id === wid);
+      if (w) w.monthly = v;
+    });
+    config.walletsUpdatedAt = now();
+    markConfigDirty('wallets');
+    saveConfig();
+    document.getElementById('settings-modal').classList.remove('show');
+    renderAll();
+    sync();
+  });
+  document.getElementById('btn-sync-save').addEventListener('click', () => {
+    const url = document.getElementById('sync-url').value.trim();
+    syncUrl = url;
+    localStorage.setItem(KEY_SYNC_URL, url);
+    document.getElementById('sync-msg').textContent = 'URLを保存しました';
+    updateSyncBadge('idle');
+    sync();
+  });
+  document.getElementById('btn-sync-now').addEventListener('click', () => sync());
+  document.getElementById('sync-badge').addEventListener('click', () => sync());
+
+  // 初期化
+  document.getElementById('in-date').value = today();
+  refreshCategorySelect();
+  load();
+  renderAll();
+  updateSyncBadge(syncUrl ? 'idle' : 'idle');
+  // 起動時に一度同期
+  if (syncUrl && navigator.onLine) sync();
+  // 定期同期(5分ごと)
+  setInterval(() => { if (syncUrl && navigator.onLine) sync(); }, 5 * 60 * 1000);
+  // ウィンドウリサイズで一覧を再描画(モバイル切替)
+  window.addEventListener('resize', () => refreshList());
+})();
+</script>
+</body>
+</html>
